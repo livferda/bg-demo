@@ -1,3 +1,4 @@
+
 version: 0.1
 component: build
 timeoutInSeconds: 6000
@@ -15,16 +16,12 @@ env:
   # For this Build to run, the Build Pipeline needs to have a BUILDRUN_HASH parameter set
   exportedVariables:
     - BUILDRUN_HASH
+    - APP_VERSION
 
 
 #Its a native way to fetch artifacts from external or artifact repo or a file path to use before a stage.
 # More about buildspec formats - https://docs.oracle.com/en-us/iaas/Content/devops/using/build_specs.htm
 
-inputArtifacts: 
-    - name: golan-cli
-      type: URL 
-      url: https://go.dev/dl/go1.17.8.linux-amd64.tar.gz
-      location: ${OCI_PRIMARY_SOURCE_DIR}/gocli.tar.gz
 
 steps:
   - type: Command
@@ -35,22 +32,26 @@ steps:
       echo "BUILDRUN_HASH: " $BUILDRUN_HASH
       
 
+      
+#You may skip below and can run the build inside the docker container itself,while building the docker image.
   - type: Command
-    timeoutInSeconds: 1200
-    name: "Build container image"
+    timeoutInSeconds: 600
+    name: "Set the App Version"
     command: |
       cd ${OCI_PRIMARY_SOURCE_DIR}
-      docker build --pull --rm -t oke_app_base .      
+      export APP_VERSION=`cat app_version.config|grep app_version|cut -f 2 -d '='`
+   
+    onFailure:
+      - type: Command
+        command: |
+          echo "Handling Failure"
+          echo "Failure successfully handled"
+        timeoutInSeconds: 40
+        runAs: root
      
 outputArtifacts:
-  - name: oke_app_base
-    type: DOCKER_IMAGE
-    # this location tag doesn't effect the tag used to deliver the container image
-    # to the Container Registry
-    location: oke_app_base:latest
-
-  - name: oke_deploy_manifest
+  - name: instance_deploy_manifest
     type: BINARY
     # this location tag doesn't effect the tag used to deliver the container image
     # to the Container Registry
-    location: ${OCI_PRIMARY_SOURCE_DIR}/oci-oke-deployment.yaml
+    location: ${OCI_PRIMARY_SOURCE_DIR}/deploy_spec.yaml
